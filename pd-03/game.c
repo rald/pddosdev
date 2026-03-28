@@ -637,14 +637,13 @@ int main(void) {
 		update(deltaTime);
     render();
 
-/*
     gotoxy(1,1);
     for(i=0;i<128;i++) {
       if(keys[i]!=0) {
         printf("%02X ",i);
       }
     }
-*/
+
 
 	}
 

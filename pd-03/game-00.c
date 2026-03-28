@@ -17,16 +17,6 @@ Mouse *mouse=NULL;
 bool hold=false;
 int color=0;
 
-typedef enum {
-  GAME_STATE_DRAW=0,
-  GAME_STATE_COLOR,
-  GAME_STATE_ERASE,
-  GAME_STATE_MAX
-} GameState;
-
-GameState gameState=GAME_STATE_DRAW;
-GameState prevState=GAME_STATE_DRAW;
-
 typedef struct {
   Canvas *canvas;
   int x,y;
@@ -34,7 +24,6 @@ typedef struct {
 } Target;
 
 Target *target=NULL;
-
 
 
 dword palette[] = {
@@ -56,8 +45,6 @@ dword palette[] = {
 	0x333C57L,
 };
 
-
-
 volatile char keys[128];
 void interrupt (*old09)(void);
 void interrupt new09(void) {
@@ -70,83 +57,6 @@ void interrupt new09(void) {
 	}
 	outportb(0x20, 0x20);
 /*  (*old09)(); */
-}
-
-bool inrect(int x,int y,int rx,int ry,int rw,int rh) {
-  return x>=rx && x<rw+rx && y>=ry && y<ry+rh;
-}
-
-typedef struct {
-  int x,y;
-} Point;
-
-#define STACK_MAX 1024
-Point stack[STACK_MAX];
-int sp=STACK_MAX;
-
-void push(int x,int y) {
-  sp--;
-  stack[sp].x=x;
-  stack[sp].y=y;
-}
-
-void pop(int *x,int *y) {
-  *x=stack[sp].x;
-  *y=stack[sp].y;
-  sp++;
-}
-
-bool isStackEmpty() {
-  return sp==STACK_MAX;
-}
-
-void scanForSeeds(byte *srf, int lx, int rx, int y, unsigned int old_color, unsigned int new_color) {  
-  bool added = false;
-  int x;
-  
-  if (y < 0 || y >= SCREEN_HEIGHT) return;
-  
-  for (x = lx; x <= rx; x++) {
-    if (Graphics_ReadPoint(srf, x, y) == old_color) {
-      if (!added) {
-        push(x, y);
-        added = true;
-      }
-    } else {
-      added = false;
-    }
-  }
-}
-
-void scanlineFloodFill(byte *srf, int x, int y, unsigned int new_color, unsigned int old_color) {
-  int i;
-  int lx,rx;
-  if (old_color == new_color) return;
-  
-  push(x, y);
-  
-  while (!isStackEmpty()) {
-    pop(&x, &y);
-  
-    lx = x;
-    while (lx > 0 && Graphics_ReadPoint(srf, lx - 1, y) == old_color) {
-      Graphics_DrawPoint(srf, lx - 1, y, new_color);
-      lx--;
-    }
-    
-    rx = x;
-    while (rx < SCREEN_WIDTH - 1 && Graphics_ReadPoint(srf, rx + 1, y) == old_color) {
-      Graphics_DrawPoint(srf, rx + 1, y, new_color);
-      rx++;
-    }
-    
-    for (i = lx; i <= rx; i++) {
-      Graphics_DrawPoint(srf, i, y, new_color);
-    }
-    
-    scanForSeeds(srf, lx, rx, y + 1, old_color, new_color);
-    scanForSeeds(srf, lx, rx, y - 1, old_color, new_color);
-  }
 }
 
 void paletteInit() {
@@ -174,15 +84,15 @@ void paletteInit() {
 	}
 }
 
-void drawText(byte *srf,Canvas *font,int x,int y,char *text) {
+void drawText(Canvas *cvs,byte *srf,int x,int y,char *text) {
 	int i,j,k;
 	int xp=x,yp=y;
 	for(j=0;text[j];j++) {
-    Canvas_Draw(font,srf,xp,yp,text[j]-' ');
-    xp+=font->width;
-    if(xp>SCREEN_WIDTH-font->width) {
+		Canvas_Draw(cvs,srf,xp,yp,text[j]-' ');
+		xp+=cvs->width;
+		if(xp>SCREEN_WIDTH-cvs->width) {
 			xp=0;
-      yp+=font->height;
+			yp+=cvs->height;
 		}
   }
 }
@@ -289,6 +199,7 @@ void drawOval(byte *srf,int x1, int y1, int x2, int y2,int c) {
     }
 }
 
+
 void fillOval(byte *srf,int x0,int y0,int x1,int y1,int c) {
   int i,t,xc,yc,rx,ry;
   long x,y;
@@ -358,96 +269,21 @@ long getPreciseTime() {
 	return *((long far *)0x0040006CL);
 }
 
-void showInfo() {
-  char text[256];
-
-  sprintf(text,"%3d,%3d %3d,%3d",mouse->x,mouse->y,target->x,target->y);
-  drawText(buf,font,0,SCREEN_HEIGHT-8,text);
-
-  fillRect(buf,16*8,SCREEN_HEIGHT-8-1,16*8+8,SCREEN_HEIGHT-2,color);
-  drawRect(buf,16*8,SCREEN_HEIGHT-8-1,16*8+8,SCREEN_HEIGHT-2,0);
-}
-
-void renderDraw() {
-
-  my_memcpy(buf,drw,SCREEN_SIZE,0);
+void draw() {
+	memset(buf,0,SCREEN_SIZE);
+	my_memcpy(buf,drw,SCREEN_SIZE,0);
 
   Canvas_Draw(target->canvas,buf,target->x-target->hotX,target->y-target->hotY,0);
 
-  showInfo();
-
-  Mouse_Draw(mouse,buf);
-
-}
-
-void renderColor() {
-  int i;
-
-  for(i=0;i<16;i++) {
-    fillRect(buf,i*16,0,i*16+16,16,i);
-  }
-  fillRect(buf,color*16,0,color*16+16,16,0);
-  fillRect(buf,color*16+2,2,color*16+16-2,16-2,color);
-  drawRect(buf,color*16,0,color*16+16,16,12);
-
-  Mouse_Draw(mouse,buf);
-}
-
-void renderErase() {
-  int i;
-
-  int w=8,h=8;
-
-  my_memcpy(buf,drw,SCREEN_SIZE,0);
-
-  showInfo();
-
-  drawRect(
-    buf,
-    mouse->x-w/2,
-    mouse->y-h/2,
-    mouse->x+w/2,
-    mouse->y+h/2,
-    12
-  );
-
-  drawRect(
-    buf,
-    mouse->x-w/2+1,
-    mouse->y-h/2+1,
-    mouse->x+w/2-1,
-    mouse->y+h/2-1,
-    0
-  );
-
-  drawRect(
-    buf,
-    mouse->x-w/2+2,
-    mouse->y-h/2+2,
-    mouse->x+w/2-2,
-    mouse->y+h/2-2,
-    12
-  );
-
-}
-
-void render() {
-	memset(buf,0,SCREEN_SIZE);
-
-  switch(gameState) {
-    case GAME_STATE_DRAW: renderDraw(); break;
-    case GAME_STATE_COLOR: renderColor(); break;
-    case GAME_STATE_ERASE: renderErase(); break;
-    default: break;
-  }
-
+	Mouse_Draw(mouse,buf);
 	memcpy(VGA,buf,SCREEN_SIZE);
 	Graphics_Vsync();
 }
 
-void updateDraw(long dt) {
-
+void update(long dt) {
   int i;
+
+	if(keys[0x01]) quit=true;
 
 	Mouse_Status(&mouse->x,&mouse->y,&mouse->buttons);
   mouse->x = mouse->x >> 1;
@@ -457,27 +293,59 @@ void updateDraw(long dt) {
     target->y=mouse->y;
   }
 
-  if(!mouse->hold) {
-    if(mouse->buttons==1) {
-      mouse->hold=true;
-      mouse->dx=mouse->x;
-      mouse->dy=mouse->y;
-    }
-  } else {
-    if(mouse->buttons==1) {
-      drawLine(drw,mouse->dx,mouse->dy,mouse->x,mouse->y,color);
-      mouse->dx=mouse->x;
-      mouse->dy=mouse->y;
-    } else {
-      mouse->hold=false;
-    }
-  }
-
   if(!hold) {
-    if(keys[0x13] && (keys[0x2A] || keys[0x36])) {
+    if(keys[0x02]) {
+      hold=true;
+      color=0x01;
+    } else if(keys[0x03]) {
+      hold=true;
+      color=0x02;
+    } else if(keys[0x04]) {
+      hold=true;
+      color=0x03;
+    } else if(keys[0x05]) {
+      hold=true;
+      color=0x04;
+    } else if(keys[0x06]) {
+      hold=true;
+      color=0x05;
+    } else if(keys[0x07]) {
+      hold=true;
+      color=0x06;
+    } else if(keys[0x08]) {
+      hold=true;
+      color=0x07;
+    } else if(keys[0x09]) {
+      hold=true;
+      color=0x08;
+    } else if(keys[0x0A]) {
+      hold=true;
+      color=0x09;
+    } else if(keys[0x0B]) {
+      hold=true;
+      color=0x00;
+    } else if(keys[0x1E]) {
+      hold=true;
+      color=0x0A;
+    } else if(keys[0x30]) {
+      hold=true;
+      color=0x0B;
+    } else if(keys[0x2E]) {
+      hold=true;
+      color=0x0C;
+    } else if(keys[0x20]) {
+      hold=true;
+      color=0x0D;
+    } else if(keys[0x12]) {
+      hold=true;
+      color=0x0E;
+    } else if(keys[0x21]) {
+      hold=true;
+      color=0x0F;
+    } else if(keys[0x13] && keys[0x2A]) {
       hold=true;
       fillRect(drw,target->x,target->y,mouse->x,mouse->y,color);
-    } else if(keys[0x18] && (keys[0x2A] || keys[0x36])) {
+    } else if(keys[0x18] && keys[0x2A]) {
       hold=true;
       fillOval(drw,target->x,target->y,mouse->x,mouse->y,color);
     } else if(keys[0x26]) {
@@ -491,50 +359,6 @@ void updateDraw(long dt) {
     } else if(keys[0x18]) {
       hold=true;
       drawOval(drw,target->x,target->y,mouse->x,mouse->y,color);     
-    } else if(keys[0x21]) {
-      hold=true;
-      scanlineFloodFill(
-        drw,
-        mouse->x,mouse->y,
-        color,
-        Graphics_ReadPoint(drw,mouse->x,mouse->y)
-      );
-    } else if(keys[0x19]) {
-      hold=true;
-      gameState=GAME_STATE_COLOR;
-    } else if(keys[0x12]) {
-      hold=true;
-      prevState=gameState;
-      gameState=GAME_STATE_ERASE;
-    }
-  } else {
-    hold=false;
-    for(i=0;i<128;i++) {
-      if(i!=0x2A && i!=0x36) {
-        if(keys[i]) {
-          hold=true;
-          break;
-        }
-      }
-    }
-  }
-}
-
-void updateColor(long dt) {
-  int i;
-
-	Mouse_Status(&mouse->x,&mouse->y,&mouse->buttons);
-  mouse->x = mouse->x >> 1;
-
-  if( mouse->buttons==1 &&
-      inrect(mouse->x,mouse->y,0,0,16*16,16)) {
-    color=(int)(mouse->x/16);
-  }
-
-  if(!hold) {
-    if(keys[0x19]) {
-      hold=true;
-      gameState=prevState;
     }
   } else {
     hold=false;
@@ -546,57 +370,6 @@ void updateColor(long dt) {
         }
       }
     }
-  }
-}
-
-void updateErase(long dt) {
-  int i;
-  int w=8,h=8;
-
-	Mouse_Status(&mouse->x,&mouse->y,&mouse->buttons);
-  mouse->x = mouse->x >> 1;
-
-  if(mouse->buttons==1) {
-    fillRect(
-      drw,
-      mouse->x-w/2,
-      mouse->y-h/2,
-      mouse->x+w/2,
-      mouse->y+w/2,
-      color
-    );
-  }
-
-  if(!hold) {
-    if(keys[0x12]) {
-      hold=true;
-      prevState=GAME_STATE_DRAW;
-      gameState=GAME_STATE_DRAW;
-    } else if(keys[0x19]) {
-      hold=true;
-      prevState=gameState;
-      gameState=GAME_STATE_COLOR;
-    }
-  } else {
-    hold=false;
-    for(i=0;i<128;i++) {
-      if(i!=0x2A) {
-        if(keys[i]) {
-          hold=true;
-          break;
-        }
-      }
-    }
-  }
-}
-
-void update(long dt) {
-	if(keys[0x01]) quit=true;
-  switch(gameState) {
-    case GAME_STATE_DRAW: updateDraw(dt); break;
-    case GAME_STATE_COLOR: updateColor(dt); break;
-    case GAME_STATE_ERASE: updateErase(dt); break;
-    default: break;
   }
 }
 
@@ -610,7 +383,7 @@ int main(void) {
 	buf=calloc(SCREEN_SIZE,sizeof(*buf));
 	drw=calloc(SCREEN_SIZE,sizeof(*drw));
 
-  font = Canvas_Load("font-01.cvs");
+	font = Canvas_Load("font-00.cvs");
 	mouse = Mouse_New("mouse.cvs");
 
   target=malloc(sizeof(*target));
@@ -634,18 +407,17 @@ int main(void) {
 		deltaTime=currentTime-lastTime;
 		lastTime=currentTime;
 
-		update(deltaTime);
-    render();
 
-/*
     gotoxy(1,1);
     for(i=0;i<128;i++) {
       if(keys[i]!=0) {
         printf("%02X ",i);
       }
     }
-*/
 
+
+		update(deltaTime);
+		draw();
 	}
 
 	Canvas_Free(font);

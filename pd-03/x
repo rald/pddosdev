@@ -1,0 +1,19 @@
+MAKE  Version 3.0  Copyright (c) 1987, 1990 Borland International
+
+Available memory 487430 bytes
+
+        TCC -ml -eGAME GAME GRAPHICS CANVAS MOUSE
+Turbo C  Version 2.01  Copyright (c) 1987, 1988 Borland International
+game.c:
+Warning game.c 113: Parameter 'new_color' is never used in function scanForSeeds
+Warning game.c 463: Parameter 'dt' is never used in function updateDraw
+Warning game.c 492: Parameter 'dt' is never used in function updateColor
+graphics.c:
+canvas.c:
+mouse.c:
+Turbo Link  Version 3.01 Copyright (c) 1987, 1990 Borland International
+Error: Undefined symbol _is_stack_empty in module game.c
+
+        Available memory 224360
+
+** error 1 ** deleting game.exe
