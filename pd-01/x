@@ -1,0 +1,14 @@
+MAKE  Version 3.0  Copyright (c) 1987, 1990 Borland International
+
+Available memory 487404 bytes
+
+        TCC -ml -eGAME GAME GRAPHICS CANVAS MOUSE
+Turbo C  Version 2.01  Copyright (c) 1987, 1988 Borland International
+game.c:
+Warning game.c 325: Parameter 'dt' is never used in function update
+graphics.c:
+canvas.c:
+mouse.c:
+Turbo Link  Version 3.01 Copyright (c) 1987, 1990 Borland International
+
+        Available memory 232708
