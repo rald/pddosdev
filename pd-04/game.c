@@ -480,30 +480,6 @@ void updateDraw(long dt) {
     } else if(keys[0x18] && (keys[0x2A] || keys[0x36])) {
       hold=true;
       fillOval(drw,target->x,target->y,mouse->x,mouse->y,color);
-    } else if(keys[0x48] && (keys[0x2A] || keys[0x36])) {
-      hold=true;
-      Mouse_Set(mouse->x<<1,mouse->y-10);
-    } else if(keys[0x50] && (keys[0x2A] || keys[0x36])) {
-      hold=true;
-      Mouse_Set(mouse->x<<1,mouse->y+10);
-    } else if(keys[0x4B] && (keys[0x2A] || keys[0x36])) {
-      hold=true;
-      Mouse_Set((mouse->x-10)<<1,mouse->y);
-    } else if(keys[0x4D] && (keys[0x2A] || keys[0x36])) {
-      hold=true;       
-      Mouse_Set((mouse->x+10)<<1,mouse->y);
-    } else if(keys[0x48]) {
-      hold=true;
-      Mouse_Set(mouse->x<<1,mouse->y-1);
-    } else if(keys[0x50]) {
-      hold=true;
-      Mouse_Set(mouse->x<<1,mouse->y+1);
-    } else if(keys[0x4B]) {
-      hold=true;
-      Mouse_Set((mouse->x-1)<<1,mouse->y);
-    } else if(keys[0x4D]) {
-      hold=true;       
-      Mouse_Set((mouse->x+1)<<1,mouse->y);
     } else if(keys[0x26]) {
       hold=true;
       drawLine(drw,target->x,target->y,mouse->x,mouse->y,color);
@@ -524,7 +500,7 @@ void updateDraw(long dt) {
         Graphics_ReadPoint(drw,mouse->x,mouse->y)
       );
     } else if(keys[0x19]) {
-      hold=true;          
+      hold=true;
       gameState=GAME_STATE_COLOR;
     } else if(keys[0x12]) {
       hold=true;
@@ -636,7 +612,6 @@ int main(void) {
 
   font = Canvas_Load("font-01.cvs");
 	mouse = Mouse_New("mouse.cvs");
-
 
   target=malloc(sizeof(*target));
   target->canvas = Canvas_Load("target.cvs");
