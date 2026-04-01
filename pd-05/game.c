@@ -492,9 +492,6 @@ void updateDraw(long dt) {
     } else if(keys[0x4D] && (keys[0x2A] || keys[0x36])) {
       hold=true;       
       Mouse_Set((mouse->x+10)<<1,mouse->y);
-    } else if(keys[0x26] && (keys[0x2A] || keys[0x36])) {
-      hold=true;
-      drawLine(drw,target->x,target->y,mouse->x,mouse->y,color);
     } else if(keys[0x48]) {
       hold=true;
       Mouse_Set(mouse->x<<1,mouse->y-1);
@@ -526,15 +523,6 @@ void updateDraw(long dt) {
         color,
         Graphics_ReadPoint(drw,mouse->x,mouse->y)
       );
-    } else if(keys[0x2D]) {
-      word tx=mouse->x;
-      word ty=mouse->y;
-      mouse->x=target->x;
-      mouse->y=target->y;
-      target->x=tx;
-      target->y=ty;
-      Mouse_Set(mouse->x<<1,mouse->y);
-      hold=true;
     } else if(keys[0x19]) {
       hold=true;          
       gameState=GAME_STATE_COLOR;
@@ -674,14 +662,14 @@ int main(void) {
 		update(deltaTime);
     render();
 
-
+/*
     gotoxy(1,1);
     for(i=0;i<128;i++) {
       if(keys[i]!=0) {
         printf("%02X ",i);
       }
     }
-
+*/
 
 	}
 
